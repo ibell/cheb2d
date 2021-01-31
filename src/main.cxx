@@ -4,13 +4,13 @@
 template <int Nx, int Ny>
 void time_one(){
     using MatType = Eigen::Array<double, Nx, Ny>;
-    Cheb2DDomain spec;
-    spec.xmin = -1;
-    spec.xmax = 1;
-    spec.ymin = -1;
-    spec.ymax = 1;
-    Cheb2D<MatType> cheb2(spec);
-    auto f = [](double x, double y) {return sin(x) * exp(-x * x - y * y); };
+    Cheb2DDomain domain;
+    domain.xmin = -1;
+    domain.xmax = 1;
+    domain.ymin = -1;
+    domain.ymax = 1;
+    Cheb2D<MatType> cheb2(domain);
+    auto f = [](double x, double y) {return sin(x) * exp(-x*x -y*y); };
     if (Nx < 0) {
         cheb2.resize(Ny, Ny);
     }
