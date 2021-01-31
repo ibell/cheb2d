@@ -32,16 +32,21 @@ void time_one(){
 
 int main(){
     time_one<2,2>();
+    time_one<-1,2>();
     time_one<3,3>();
+    time_one<-1,3>();
     time_one<4,4>(); 
     time_one<-1,4>();
     time_one<5,5>();
+    time_one<-1,5>();
     time_one<6,6>();
     time_one<-1,6>();
     time_one<7,7>();
+    time_one<-1,7>();
     time_one<8,8>();
     time_one<-1,8>();
     time_one<9,9>();
+    time_one<-1, 9>();
     time_one<16,16>();
     int rr = 0;
 }
