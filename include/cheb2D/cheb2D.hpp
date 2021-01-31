@@ -54,7 +54,7 @@ Eigen::MatrixXd get_DCT_matrix(Eigen::Index N){
     return L;
 }
 
-struct Cheb2DSpec{
+struct Cheb2DDomain{
     double xmin, xmax, ymin, ymax;
 };
 
@@ -65,12 +65,12 @@ class Cheb2D{
 private:
     CoeffMatType coeff;
     Eigen::Index Nx, Ny;
-    Cheb2DSpec spec;
+    Cheb2DDomain spec;
     bool _resize_required;
     Eigen::Matrix<double, Rows, Rows> Lx;
     Eigen::Matrix<double, Cols, Cols> Ly;
 public:
-    Cheb2D(const Cheb2DSpec& spec) : spec(spec), _resize_required(false) {
+    Cheb2D(const Cheb2DDomain& spec) : spec(spec), _resize_required(false) {
         _resize_required = false;
         Nx = coeff.RowsAtCompileTime;
         Ny = coeff.ColsAtCompileTime;

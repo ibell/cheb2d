@@ -4,7 +4,7 @@
 template <int Nx, int Ny>
 void time_one(){
     using MatType = Eigen::Array<double, Nx, Ny>;
-    Cheb2DSpec spec;
+    Cheb2DDomain spec;
     spec.xmin = -1;
     spec.xmax = 1;
     spec.ymin = -1;
