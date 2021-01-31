@@ -24,7 +24,7 @@ void time_one(){
     }
     auto endTime = std::chrono::system_clock::now();
     auto elap_us = std::chrono::duration<double>(endTime - startTime).count() / N * 1e6;
-    std::cout << Nx << "," << Ny << "," << elap_us << "val: " <<  r/N << std::endl;
+    std::cout << Nx << "," << Ny << "," << Ny*Ny << "," << elap_us << " val: " <<  r/N << std::endl;
 
     //auto fcheb = cheb2.eval(0.7, 0.7);
     //auto ff = f(0.7, 0.7);
