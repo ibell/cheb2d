@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory>
 
 #include <Eigen/Dense>
 
@@ -60,6 +61,7 @@ struct Cheb2DDomain{
 
 const double M_PI = acos(-1.0);
 
+typedef std::function<double(double, double)> Func2D;
 template <typename CoeffMatType, int Rows = CoeffMatType::RowsAtCompileTime, int Cols = CoeffMatType::ColsAtCompileTime>
 class Cheb2D{
 private:
@@ -114,7 +116,7 @@ public:
         // Scale input y value in [-1,1] into real-world values
         return (yn11 * (spec.ymax - spec.ymin) + (spec.ymax + spec.ymin))/2;
     }
-    void build(const std::function<double(double, double)> &f){
+    void build(const Func2D&f) {
         this->spec = spec;
         if (_resize_required){
             throw std::invalid_argument("Need to call resize since dimensions are dynamic");
@@ -157,14 +159,121 @@ public:
             coeff.row(ir) = Lx*fnodes;
         }
     }
-    double eval(double x, double y){
+    double eval(double x, double y) const{
 
         // Flatten in x direction with Clenshaw for each row in C to get the functional
         // values of the expansion at the ynodes
         auto fatynodes = Clenshawbycol(scalex(x), coeff, coeff.rows()); // f at Chebshev - Lobatto ynodes for specified value of xscaled
 
         // Build expansion from functional values at y nodes
-        auto c = Lx*fatynodes;
+        auto c = Ly*fatynodes;
         return Clenshaw(scaley(y), c);
+    }
+};
+
+struct Cheb2DSpec{   
+    int Nx, Ny;
+    Cheb2DDomain domain;
+};
+
+// Either this node is a terminal node in the tree or
+// it has a reference to two further nodes
+class Cheb2DNode{
+private:
+    bool terminal;
+    std::shared_ptr<Cheb2DNode> child1, child2;
+    Cheb2DSpec spec;
+    double xmid = -1, ymid = -1;
+    bool split_in_y = false, split_in_x = false;
+    const Func2D f;
+
+    using MatType = Eigen::Array<double, 8, 8>;
+    Cheb2D<MatType> ce;
+    Cheb2D<MatType> build(const Func2D& f, const Cheb2DSpec& spec){
+        Cheb2D<MatType> ce(spec.domain);
+        ce.build(f);
+        return ce;
+    }
+public:
+    Cheb2DNode(const Func2D &f, const Cheb2DSpec& spec) : f(f), spec(spec), ce(build(f, spec)){
+        // I'm terminal
+        terminal = true;
+    }
+    void dyadic_split_y(){
+        if (!terminal) { throw std::invalid_argument("split can only be called on terminal node;"); }
+        ymid = (spec.domain.ymin + spec.domain.ymax)/2;
+        auto newspec1 = spec, newspec2 = spec;
+        newspec1.domain.ymax = ymid;
+        newspec2.domain.ymin = ymid;
+        child1.reset(new Cheb2DNode(f, newspec1));
+        child2.reset(new Cheb2DNode(f, newspec2));
+        split_in_y = true;
+        terminal = false;
+    };
+    void dyadic_split_x(){
+        if (!terminal){ throw std::invalid_argument("split can only be called on terminal node;"); }
+        xmid = (spec.domain.xmin + spec.domain.xmax) / 2;
+        auto newspec1 = spec, newspec2 = spec;
+        newspec1.domain.xmax = xmid;
+        newspec2.domain.xmin = xmid;
+        child1.reset(new Cheb2DNode(f, newspec1));
+        child2.reset(new Cheb2DNode(f, newspec2));
+        split_in_x = true;
+        terminal = false;
+    };
+    Cheb2DNode& recursive_getnode(double x, double y) {
+        // Handle the trivial case
+        if (terminal) {
+            return *this;
+        }
+        else if (split_in_x){
+            // Recurse
+            return (x >= xmid) ? child2->recursive_getnode(x,y) : child1->recursive_getnode(x,y);
+        }
+        else if (split_in_y) {
+            // Recurse
+            return (y >= ymid) ? child2->recursive_getnode(x,y) : child1->recursive_getnode(x,y);
+        }
+    }
+    void recursive_split(bool xdirection) {
+        // Handle the trivial case
+        if (terminal) {
+            if (xdirection){
+                dyadic_split_x();
+            }
+            else{
+                dyadic_split_y();
+            }
+        }
+        else {
+            child1->recursive_split(xdirection);
+            child2->recursive_split(xdirection);
+        }
+    }
+    bool in_bbox(double x, double y){
+        return x >= spec.domain.xmin && x <= spec.domain.xmax && y >= spec.domain.ymin && y <= spec.domain.ymax;
+    }
+    auto & get_cheb2d(){
+        return ce;
+    }
+};
+
+class Cheb2DTree{
+private:
+    Cheb2DSpec spec;
+    Cheb2DNode rootnode;
+    Cheb2DNode get_rootnode(const Func2D& f){
+        return Cheb2DNode(f, spec);
+    }
+public:
+    Cheb2DTree(const Func2D & f, const Cheb2DSpec &spec) : spec(spec), rootnode(get_rootnode(f)) { };
+    void recursive_split(bool xdirection){
+        rootnode.recursive_split(xdirection);
+    }
+    Cheb2DNode& getnode(double x, double y) {
+        return rootnode.recursive_getnode(x,y);
+    }
+    double eval(double x, double y){
+        return rootnode.recursive_getnode(x,y).get_cheb2d().eval(x, y);
     }
 };
